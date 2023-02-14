@@ -17,5 +17,6 @@ Deployment:
 - Adapt all domain names in `Host()`
 - Adapt `acme.email`
 - Adapt dashboard username/password
+- When using Traefik v2, remove line `entrypoints.websecure.asDefault=true`
 - For production: write logs files to mounted folder on host
 - Run `docker compose up -d`
