@@ -1,0 +1,58 @@
+version: '3.9'
+
+services:
+  traefik:
+    image: traefik:v3.0
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      - proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+      #- /var/log:/var/log
+    command:
+      - --api.dashboard=true
+      - --log.level=INFO
+      #- --log.filepath=/var/log/traefik.log
+      - --accesslog=true
+      #- --accesslog.filepath=/var/log/traefik-access.log
+      - --providers.docker.network=proxy
+      - --providers.docker.exposedByDefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entryPoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.asDefault=true
+      - --entrypoints.websecure.http.tls.certresolver=myresolver
+      - --certificatesresolvers.myresolver.acme.email=mail@example.com
+      - --certificatesresolvers.myresolver.acme.tlschallenge=true
+      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mydashboard.rule=Host(`traefik.example.com`)
+      - traefik.http.routers.mydashboard.service=api@internal
+      - traefik.http.routers.mydashboard.middlewares=myauth
+      - traefik.http.middlewares.myauth.basicauth.users=test:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/
+
+  whoami:
+    image: traefik/whoami:v1.8
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mywhoami.rule=Host(`whoami.example.com`) || Host(`www.whoami.example.com`)
+      - traefik.http.services.mywhoami.loadbalancer.server.port=80
+
+      - traefik.http.middlewares.mywwwredirect.redirectregex.regex=^https://www\.(.*)
+      - traefik.http.middlewares.mywwwredirect.redirectregex.replacement=https://$${1}
+      - traefik.http.routers.mywhoami.middlewares=mywwwredirect
+
+networks:
+  proxy:
+    name: proxy
+
+volumes:
+  letsencrypt:
+    name: letsencrypt
