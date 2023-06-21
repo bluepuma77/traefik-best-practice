@@ -1,0 +1,89 @@
+version: '3.9'
+
+networks:
+  proxy:
+    name: proxy
+    #external: true
+
+volumes:
+  letsencrypt:
+    name: letsencrypt
+
+services:
+  traefik:
+    image: traefik:v2.10
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+      - target: 9000
+        published: 9000
+        protocol: tcp
+        mode: host
+    networks:
+      - proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+      #- /var/log:/var/log
+    command:
+      - --api.dashboard=true
+      - --log.level=INFO
+      #- --log.filepath=/var/log/traefik.log
+      - --accesslog=true
+      #- --accesslog.filepath=/var/log/traefik-access.log
+      - --providers.docker=true
+      - --providers.docker.exposedByDefault=false
+      - --entryPoints.web.address=:80
+      - --entryPoints.web.http.redirections.entryPoint.to=websecure
+      - --entryPoints.web.http.redirections.entryPoint.scheme=https
+      - --entryPoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls.certresolver=myresolver
+      - --entryPoints.tcp-plain.address=:9000
+      - --certificatesresolvers.myresolver.acme.tlschallenge=true
+      - --certificatesResolvers.myresolver.acme.email=email@example.com
+      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mydashboard.entrypoints=websecure
+      - traefik.http.routers.mydashboard.rule=Host(`traefik.example.com`)
+      - traefik.http.routers.mydashboard.service=api@internal
+      - traefik.http.routers.mydashboard.middlewares=myauth
+      - traefik.http.middlewares.myauth.basicauth.users=test:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/
+
+  whoami:
+    image: traefik/whoami:v1.9
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.whoami.entrypoints=websecure
+      - traefik.http.routers.whoami.rule=Host(`whoami.example.com`)
+      - traefik.http.services.whoami.loadbalancer.server.port=80
+
+  tcpecho-le:
+    image: istio/tcp-echo-server:1.2
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.tcp.routers.tcpecho-le.entrypoints=websecure
+      - traefik.tcp.routers.tcpecho-le.rule=HostSNI(`tcp.example.com`)
+      - traefik.tcp.routers.tcpecho-le.tls.certresolver=myresolver
+      - traefik.tcp.services.tcpecho-le.loadbalancer.server.port=9000
+
+  tcpecho-plain:
+    image: istio/tcp-echo-server:1.2
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.tcp.routers.tcpecho-plain.entrypoints=tcp-plain
+      - traefik.tcp.routers.tcpecho-plain.rule=HostSNI(`*`)
+      - traefik.tcp.services.tcpecho-plain.loadbalancer.server.port=9000
+
