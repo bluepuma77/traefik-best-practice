@@ -1,0 +1,84 @@
+version: '3.9'
+
+configs:
+  traefik-dynamic.yml:
+    file: ./traefik-dynamic.yml
+    
+volumes:
+  traefik-certificates:
+
+networks:
+  proxy:
+    name: proxy
+    driver: overlay
+    attachable: true
+
+services:
+  traefik:
+    image: traefik:v2.10
+    hostname: '{{.Node.Hostname}}'
+    configs:
+      - traefik-dynamic.yml
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-certificates:/certificates
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+    networks:
+      - proxy
+    command:
+      - --providers.docker=true
+      - --providers.docker.swarmMode=true
+      - --providers.docker.exposedByDefault=false
+      - --providers.docker.network=proxy
+      - --providers.file.filename=/traefik-dynamic.yml
+      - --providers.file.watch=true
+      - --entryPoints.web.address=:80
+      - --entryPoints.web.http.redirections.entryPoint.to=websecure
+      - --entryPoints.web.http.redirections.entryPoint.scheme=https
+      - --entryPoints.websecure.address=:443
+      - --entryPoints.websecure.http.tls=true
+      - --entryPoints.websecure.http.tls.certResolver=myresolver
+      - --api.debug=true
+      - --api.dashboard=true
+      - --log.level=INFO
+      - --accesslog=true
+      - --certificatesResolvers.myresolver.acme.email=mail.example.com
+      - --certificatesResolvers.myresolver.acme.storage=/certificates/acme.json
+      - --certificatesresolvers.myresolver.acme.tlschallenge=true
+    deploy:
+      mode: global
+      placement:
+        constraints:
+          - node.role==manager
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.api.entrypoints=websecure
+        - traefik.http.routers.api.rule=Host(`traefik.example.com`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+        - traefik.http.routers.api.service=api@internal
+        - traefik.http.routers.api.middlewares=auth
+        - 'traefik.http.middlewares.auth.basicauth.users=test:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/'
+        - traefik.http.services.dummy-svc.loadbalancer.server.port=9999
+
+  whoami:
+    image: traefik/whoami:v1.10
+    hostname: '{{.Node.Hostname}}'
+    networks:
+      - proxy
+    deploy:
+      mode: global
+      #placement:
+      #  constraints:
+      #    - node.role==manager
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.whoami.entrypoints=websecure
+        - traefik.http.routers.whoami.rule=Host(`whoami.example.com`)
+        - traefik.http.services.whoami.loadbalancer.server.port=80
