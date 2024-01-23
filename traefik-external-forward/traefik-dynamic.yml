@@ -1,0 +1,19 @@
+http:
+  routers:
+    forward:
+      rule: Host(`search.example.com`)
+      middlewares:
+        - addHost
+      service: forward
+
+  middlewares:
+    addHost:
+      headers:
+        customRequestHeaders:
+          Host: www.ecosia.org
+
+  services:
+    forward:
+      loadBalancer:
+        servers:
+          - url: https://www.ecosia.org
