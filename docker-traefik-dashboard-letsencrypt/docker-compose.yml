@@ -9,7 +9,7 @@ services:
     networks:
       - proxy
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock
       - letsencrypt:/letsencrypt
       #- /var/log:/var/log
     command:
@@ -24,7 +24,7 @@ services:
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entryPoints.web.http.redirections.entrypoint.scheme=https
       - --entrypoints.websecure.address=:443
-      - --entrypoints.websecure.asDefault=true
+      - --entrypoints.websecure.asDefault=true # remove when using v2
       - --entrypoints.websecure.http.tls.certresolver=myresolver
       - --certificatesresolvers.myresolver.acme.email=mail@example.com
       - --certificatesresolvers.myresolver.acme.tlschallenge=true
