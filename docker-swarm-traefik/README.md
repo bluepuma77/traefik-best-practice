@@ -24,4 +24,4 @@ Simple `docker-compose.yml` template to run Traefik and a whoami service with Do
 ## Challenges:
 
 - Only a single Traefik instance should be run for `httpChallenge` or `tlsChallenge` to work, as Traefik CE (community edition) is not cluster-enabled. If you need clustered LetsEncrypt TLS, use `dnsChallenge` or a different method to generate the certs.
-- Make sure to persist the LetsEncrypt certs, as LetsEncrypt has strict limits. Note that the the content of volumes is not share across nodes.
+- Make sure to persist the LetsEncrypt TLS certs, as LetsEncrypt has strict limits. Note that the content of volumes is not shared across nodes.
