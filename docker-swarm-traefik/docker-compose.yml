@@ -2,7 +2,7 @@ version: '3'
 
 services:
   traefik:
-    image: traefik:v2.10
+    image: traefik:v3.1
     hostname: '{{.Node.Hostname}}'
     ports:
       # listen on host ports without ingress network
@@ -18,21 +18,21 @@ services:
       - proxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /var/log:/var/log
       - letsencrypt:/letsencrypt
+      #- /var/log:/var/log
     command:
       - --api.dashboard=true
       - --log.level=INFO
       #- --log.filepath=/var/log/traefik.log
       - --accesslog=true
       #- --accesslog.filepath=/var/log/traefik-access.log
-      - --providers.docker.exposedByDefault=false
-      - --providers.docker.network=proxy
-      - --providers.docker.swarmMode=true
+      - --providers.swarm.exposedByDefault=false
+      - --providers.swarm.network=proxy
       - --entrypoints.web.address=:80
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entryPoints.web.http.redirections.entrypoint.scheme=https
       - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.asDefault=true
       - --entrypoints.websecure.http.tls.certresolver=myresolver
       - --certificatesresolvers.myresolver.acme.email=mail@example.com
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
@@ -58,9 +58,9 @@ services:
     deploy:
       mode: global
       labels:
-        - 'traefik.enable=true'
-        - 'traefik.http.routers.whoami.rule=Host(`whoami.example.com`) || PathPrefix(`/whoami`)'
-        - 'traefik.http.services.whoami.loadbalancer.server.port=80'
+        - traefik.enable=true
+        - traefik.http.routers.whoami.rule=Host(`whoami.example.com`)
+        - traefik.http.services.whoami.loadbalancer.server.port=80
 
 networks:
   proxy:
