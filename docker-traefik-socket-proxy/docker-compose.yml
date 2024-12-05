@@ -1,0 +1,93 @@
+services:
+  traefik:
+    image: traefik:v3.2
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      - dockersocket
+      - proxy
+    volumes:
+      - letsencrypt:/letsencrypt
+      #- /var/log:/var/log
+    command:
+      - --api.dashboard=true
+      - --log.level=INFO
+      #- --log.filepath=/var/log/traefik.log
+      - --accesslog=true
+      #- --accesslog.filepath=/var/log/traefik-access.log
+      - --providers.docker.endpoint=tcp://dockersocket:2375
+      - --providers.docker.exposedByDefault=false
+      - --providers.docker.network=proxy
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entryPoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.http.tls.certresolver=myresolver
+      - --entrypoints.websecure.asDefault=true
+      - --certificatesresolvers.myresolver.acme.email=mail@example.com
+      - --certificatesresolvers.myresolver.acme.tlschallenge=true
+      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mydashboard.rule=Host(`traefik.example.com`)
+      - traefik.http.routers.mydashboard.service=api@internal
+      - traefik.http.routers.mydashboard.middlewares=myauth
+      - traefik.http.middlewares.myauth.basicauth.users=test:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/
+
+  dockersocket:
+    image: nginx:alpine-slim
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - dockersocket
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    configs:
+      - source: nginx
+        target: /etc/nginx/nginx.conf
+    expose:
+      - 2375
+
+  whoami:
+    image: traefik/whoami:v1.10
+    restart: unless-stopped
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mywhoami.rule=Host(`whoami.example.com`) || PathPrefix(`/whoami`)
+      - traefik.http.services.mywhoami.loadbalancer.server.port=80
+
+networks:
+  proxy:
+    name: proxy
+  dockersocket:
+    name: dockersocket
+
+volumes:
+  letsencrypt:
+    name: letsencrypt
+
+configs:
+  nginx:
+    content: |
+      user root;
+      events { worker_connections 1024; }
+      http {
+        server {
+          listen 2375;
+          location ~ ^/v1\.24/(events|containers|services|version|networks|tasks) {
+            if ($$request_method != GET) { return 405; }
+            proxy_pass http://unix:/var/run/docker.sock;
+            proxy_set_header Host $$host;
+            proxy_set_header X-Real-IP $$remote_addr;
+            proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $$scheme;
+            proxy_read_timeout 3600s;
+          }
+          location / { return 405; }
+        }
+      }
