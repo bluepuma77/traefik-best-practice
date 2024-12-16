@@ -1,0 +1,75 @@
+services:
+  traefik:
+    image: traefik:v3.2
+    hostname: '{{.Node.Hostname}}'
+    ports:
+      # listen on host ports without ingress network
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+    networks:
+      - proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+      #- /var/log:/var/log
+    command:
+      - --api.dashboard=true
+      - --log.level=DEBUG
+      #- --log.filepath=/var/log/traefik.log
+      - --accesslog=true
+      #- --accesslog.filepath=/var/log/traefik-access.log
+      - --providers.swarm.exposedByDefault=false
+      - --providers.swarm.network=proxy
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entryPoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.asDefault=true
+      - --entrypoints.websecure.http.tls.certresolver=myresolver
+      - --certificatesresolvers.myresolver.acme.email=email@example.com
+      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.myresolver.acme.dnschallenge.provider=autodns
+    environment:
+      - AUTODNS_API_USER=12345678
+      - AUTODNS_API_PASSWORD=12345678
+      - AUTODNS_CONTEXT=1234
+    deploy:
+      mode: global
+      placement:
+        constraints:
+          - node.role==manager
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.mydashboard.rule=Host(`traefik.example.com`)
+        - traefik.http.routers.mydashboard.service=api@internal
+        - traefik.http.routers.mydashboard.middlewares=myauth
+        - traefik.http.services.mydashboard.loadbalancer.server.port=1337
+        - traefik.http.middlewares.myauth.basicauth.users=test:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/
+
+  whoami:
+    image: traefik/whoami:v1.10
+    hostname: '{{.Node.Hostname}}'
+    networks:
+      - proxy
+    deploy:
+      mode: global
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.whoami.rule=Host(`whoami.example.com`)
+        - traefik.http.services.whoami.loadbalancer.server.port=80
+
+networks:
+  proxy:
+    name: proxy
+    driver: overlay
+    attachable: true
+
+volumes:
+  letsencrypt:
+    name: letsencrypt
