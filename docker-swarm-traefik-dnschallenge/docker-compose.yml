@@ -32,6 +32,9 @@ services:
       - --entrypoints.websecure.address=:443
       - --entrypoints.websecure.asDefault=true
       - --entrypoints.websecure.http.tls.certresolver=myresolver
+      # optionally create wildcard cert, without LE will create TLS certs for all `Host()`s
+      - --entrypoints.websecure.http.tls.domains[0].main=example.com
+      - --entrypoints.websecure.http.tls.domains[0].sans=*.example.com
       - --certificatesresolvers.myresolver.acme.email=email@example.com
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
       - --certificatesresolvers.myresolver.acme.dnschallenge.provider=autodns
