@@ -9,6 +9,7 @@ Simple `docker-compose.yml` template to run Traefik and a whoami service with Do
 - All http requests will be redirected to secure https requests
 - Docker services with label `traefik.enable=true` will automatically be discovered by Traefik
 - Letsencrypt `dnsChallenge` will automatically generate TLS/SSL certificates for all domains in `Host()`
+- Optionally generate wildcard TLS certs. But `main`/`sans` can savely be removed
 - Traefik log (`level=INFO`) and access log are enabled to container stdout/stderr
 - Traefik dashboard is enabled at `https://traefik.example.com/dashboard/` with user/pass test/test
 - Traefik `whoami` will be deployed to all Swarm nodes, available at `https://whoami.example.com`
