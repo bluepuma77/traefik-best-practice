@@ -1,0 +1,63 @@
+services:
+  traefik:
+    image: traefik:v3.3
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+    networks:
+      - proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ~/certificates:/certificates
+      #- /var/log:/var/log
+    command:
+      - --api.dashboard=true
+      - --log.level=DEBUG
+      #- --log.filepath=/var/log/traefik.log
+      - --accesslog=true
+      #- --accesslog.filepath=/var/log/traefik-access.log
+      - --providers.docker.exposedByDefault=false
+      - --providers.docker.network=proxy
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entryPoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.asDefault=true
+      - --entrypoints.websecure.http.tls.certresolver=myresolver
+      - --entrypoints.websecure.http.tls.domains[0].main=example.com
+      - --entrypoints.websecure.http.tls.domains[0].sans=*.example.com,*.test.example.com
+      - --certificatesresolvers.myresolver.acme.email=mail@example.com
+      - --certificatesresolvers.myresolver.acme.storage=/certificates/acme.json
+      - --certificatesresolvers.myresolver.acme.dnschallenge.provider=autodns
+    environment:
+      # vars depend on your DNS provider
+      - AUTODNS_API_USER=12345678
+      - AUTODNS_API_PASSWORD=12345678
+      - AUTODNS_CONTEXT=1234
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mydashboard.rule=Host(`traefik.example.com`)
+      - traefik.http.routers.mydashboard.service=api@internal
+      - traefik.http.routers.mydashboard.middlewares=myauth
+      - traefik.http.services.mydashboard.loadbalancer.server.port=1337
+      - traefik.http.middlewares.myauth.basicauth.users=test:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/
+
+  whoami:
+    image: traefik/whoami:v1.10
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.whoami.rule=Host(`whoami.example.com`) || Host(`whoami.test.example.com`)
+      - traefik.http.services.whoami.loadbalancer.server.port=80
+
+networks:
+  proxy:
+    name: proxy
+    attachable: true
