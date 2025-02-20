@@ -1,5 +1,3 @@
-version: '3.9'
-
 configs:
   traefik-dynamic.yml:
     file: ./traefik-dynamic.yml
@@ -10,13 +8,11 @@ volumes:
 networks:
   proxy:
     name: proxy
-    driver: overlay
     attachable: true
 
 services:
   traefik:
-    image: traefik:v2.10
-    hostname: '{{.Node.Hostname}}'
+    image: traefik:v3.3
     configs:
       - traefik-dynamic.yml
     volumes:
@@ -35,7 +31,6 @@ services:
       - proxy
     command:
       - --providers.docker=true
-      - --providers.docker.swarmMode=true
       - --providers.docker.exposedByDefault=false
       - --providers.docker.network=proxy
       - --providers.file.filename=/traefik-dynamic.yml
@@ -53,32 +48,19 @@ services:
       - --certificatesResolvers.myresolver.acme.email=mail.example.com
       - --certificatesResolvers.myresolver.acme.storage=/certificates/acme.json
       - --certificatesresolvers.myresolver.acme.tlschallenge=true
-    deploy:
-      mode: global
-      placement:
-        constraints:
-          - node.role==manager
-      labels:
-        - traefik.enable=true
-        - traefik.http.routers.api.entrypoints=websecure
-        - traefik.http.routers.api.rule=Host(`traefik.example.com`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
-        - traefik.http.routers.api.service=api@internal
-        - traefik.http.routers.api.middlewares=auth
-        - 'traefik.http.middlewares.auth.basicauth.users=test:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/'
-        - traefik.http.services.dummy-svc.loadbalancer.server.port=9999
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.api.entrypoints=websecure
+      - traefik.http.routers.api.rule=Host(`traefik.example.com`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))
+      - traefik.http.routers.api.service=api@internal
+      - traefik.http.routers.api.middlewares=myauth
+      - 'traefik.http.middlewares.myauth.basicauth.users=test:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/'
 
   whoami:
     image: traefik/whoami:v1.10
-    hostname: '{{.Node.Hostname}}'
     networks:
       - proxy
-    deploy:
-      mode: global
-      #placement:
-      #  constraints:
-      #    - node.role==manager
-      labels:
-        - traefik.enable=true
-        - traefik.http.routers.whoami.entrypoints=websecure
-        - traefik.http.routers.whoami.rule=Host(`whoami.example.com`)
-        - traefik.http.services.whoami.loadbalancer.server.port=80
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.whoami.rule=Host(`whoami.example.com`)
+      - traefik.http.services.whoami.loadbalancer.server.port=80
