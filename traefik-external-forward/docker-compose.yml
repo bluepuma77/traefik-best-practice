@@ -16,7 +16,7 @@ services:
     configs:
       - traefik-dynamic.yml
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock
       - traefik-certificates:/certificates
     ports:
       - target: 80
