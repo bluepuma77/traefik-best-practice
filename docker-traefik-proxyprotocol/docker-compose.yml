@@ -1,0 +1,87 @@
+services:
+  traefik:
+    container_name: traefik
+    image: traefik:v3.3
+    ports:
+      - 80:80
+      - 443:443
+      - 8000:8000
+      - 8001:8001
+      - 8002:8002
+    networks:
+      - proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ~/certificates:/certificates
+      - /var/log:/var/log
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --log.level=DEBUG
+      #- --log.filepath=/var/log/traefik.log
+      - --accesslog=true
+      #- --accesslog.filepath=/var/log/traefik-access.log
+      - --providers.docker.network=proxy
+      - --providers.docker.exposedByDefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entryPoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.asDefault=true
+      - --entrypoints.websecure.http.tls.certresolver=myresolver
+      - --entrypoints.plaintcp0.address=:8000
+      - --entrypoints.plaintcp1.address=:8001
+      - --entrypoints.plaintcp2.address=:8002
+      - --certificatesresolvers.myresolver.acme.email=mail@example.com
+      - --certificatesresolvers.myresolver.acme.tlschallenge=true
+      - --certificatesresolvers.myresolver.acme.storage=/certificates/acme.json
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mydashboard.rule=Host(`traefik.example.com`)
+      - traefik.http.routers.mydashboard.service=api@internal
+      - traefik.http.routers.mydashboard.middlewares=myauth
+      - traefik.http.middlewares.myauth.basicauth.users=test:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/
+
+  whoami:
+    container_name: whoami
+    image: traefik/whoami:v1.10
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mywhoami.rule=Host(`whoami.example.com`)
+      - traefik.http.services.mywhoami.loadbalancer.server.port=80
+      
+  echo:
+    container_name: echo
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.myecho.rule=Host(`echo.example.com`)
+      - traefik.http.routers.myecho.service=myecho
+      - traefik.http.services.myecho.loadbalancer.server.port=3000
+
+      - traefik.tcp.routers.myecho0.entrypoints=plaintcp0
+      - traefik.tcp.routers.myecho0.rule=HostSNI(`*`)
+      - traefik.tcp.routers.myecho0.service=myecho0
+      - traefik.tcp.services.myecho0.loadbalancer.server.port=3000
+
+      - traefik.tcp.routers.myecho1.entrypoints=plaintcp1
+      - traefik.tcp.routers.myecho1.rule=HostSNI(`*`)
+      - traefik.tcp.routers.myecho1.service=myecho1
+      - traefik.tcp.services.myecho1.loadbalancer.server.port=3000
+      - traefik.tcp.services.myecho1.loadbalancer.proxyprotocol.version=1
+
+      - traefik.tcp.routers.myecho2.entrypoints=plaintcp2
+      - traefik.tcp.routers.myecho2.rule=HostSNI(`*`)
+      - traefik.tcp.routers.myecho2.service=myecho2
+      - traefik.tcp.services.myecho2.loadbalancer.server.port=3000
+      - traefik.tcp.services.myecho2.loadbalancer.proxyprotocol.version=2
+
+networks:
+  proxy:
+    name: proxy

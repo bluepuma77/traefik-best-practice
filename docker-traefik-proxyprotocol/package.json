@@ -1,0 +1,8 @@
+{
+    "name": "node-express-proxyprotocol-tls",
+    "version": "1.0.0",
+    "license": "BSD",
+    "type": "module",
+    "dependencies": {
+    }
+}
