@@ -2,7 +2,7 @@
 
 Example of using ProxyProtocol between Traefik and target service.
 
-Traefik will proxy/forward all (encrypted) TLS traffic on `entrypoints` 8000, 8001, 8002 untouched to a target service. Port 8000 uses no proxy protocol, port 8001 uses proxy protocol v1 and port 802 uses proxy protocol v2 to target.
+Traefik will proxy/forward all (encrypted) TCP traffic on `entrypoints` 8000, 8001, 8002 untouched to a target service. Port 8000 uses no proxy protocol, port 8001 uses proxy protocol v1 and port 8002 uses proxy protocol v2 to target.
 
 The target service is a simple NodeJS echo service showing the headers and optional proxy protocol and optional TLS. It will use a simple custom TLS certificate, which can be created with
 ```
