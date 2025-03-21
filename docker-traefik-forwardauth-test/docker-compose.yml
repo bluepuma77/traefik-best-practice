@@ -1,0 +1,99 @@
+services:
+  traefik:
+    image: traefik:latest
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      - proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ~/certificates:/certificates
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --log.level=DEBUG
+      - --accesslog=true
+      - --providers.docker.network=proxy
+      - --providers.docker.exposedByDefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entryPoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.websecure.asDefault=true
+      - --entrypoints.websecure.http.tls.certresolver=myresolver
+      - --certificatesresolvers.myresolver.acme.tlschallenge=true
+      - --certificatesresolvers.myresolver.acme.storage=/certificates/acme.json
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mydashboard.rule=Host(`traefik.example.com`)
+      - traefik.http.routers.mydashboard.service=api@internal
+      - traefik.http.routers.mydashboard.middlewares=myauth
+      - traefik.http.middlewares.myauth.basicauth.users=test:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/
+
+  whoami:
+    image: traefik/whoami:v1.10
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mywhoami.rule=Host(`whoami.example.com`)
+      - traefik.http.services.mywhoami.loadbalancer.server.port=80
+      - traefik.http.routers.mywhoami.middlewares=auth
+      - traefik.http.middlewares.auth.forwardauth.address=http://forwardauth
+
+  forwardauth:
+    image: node:lts-alpine
+    networks:
+      - proxy
+    command: ["node", "/src/index.js"]
+    configs:
+      - source: forwardauth_script
+        target: /src/index.js
+
+networks:
+  proxy:
+    name: proxy
+
+configs:
+  forwardauth_script:
+    content: |
+        const http = require('http');
+
+        // Create HTTP server
+        const server = http.createServer((req, res) => {
+            // Log request method and URL
+            console.log(`\n$${new Date().toISOString()} - $${req.method} $${req.url}`);
+
+            // Log all headers
+            console.log('Headers:');
+            Object.entries(req.headers).forEach(([key, value]) => {
+                console.log(`  $${key}: $${value}`);
+            });
+
+            // Log request body if any
+            let body = [];
+            req.on('data', (chunk) => {
+                body.push(chunk);
+            });
+
+            req.on('end', () => {
+                if (body.length > 0) {
+                    body = Buffer.concat(body).toString();
+                    console.log('Body:');
+                    console.log(body);
+                } else {
+                    console.log('Body: none');
+                }
+
+                // Send response with 200 status
+                res.writeHead(200, { 'Content-Type': 'text/plain' });
+                res.end('OK');
+            });
+        });
+
+        // Start server
+        const PORT = process.env.PORT || 80;
+        server.listen(PORT, () => {
+            console.log(`Server running at http://localhost:$${PORT}/`);
+        });
