@@ -45,7 +45,6 @@ services:
       - traefik.http.routers.mydashboard.rule=Host(`traefik.example.com`)
       - traefik.http.routers.mydashboard.service=api@internal
       - traefik.http.routers.mydashboard.middlewares=myauth
-      - traefik.http.services.mydashboard.loadbalancer.server.port=1337
       - traefik.http.middlewares.myauth.basicauth.users=test:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/
 
   whoami:
