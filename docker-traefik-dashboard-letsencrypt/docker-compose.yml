@@ -1,6 +1,6 @@
 services:
   traefik:
-    image: traefik:v3.1
+    image: traefik:v3.4
     ports:
       - 80:80
       - 443:443
@@ -12,7 +12,7 @@ services:
       #- /var/log:/var/log
     command:
       - --api.dashboard=true
-      - --log.level=INFO
+      - --log.level=DEBUG
       #- --log.filepath=/var/log/traefik.log
       - --accesslog=true
       #- --accesslog.filepath=/var/log/traefik-access.log
@@ -22,10 +22,8 @@ services:
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entryPoints.web.http.redirections.entrypoint.scheme=https
       - --entrypoints.websecure.address=:443
-      # remove next line when using Traefik v2
       - --entrypoints.websecure.asDefault=true 
       - --entrypoints.websecure.http.tls.certresolver=myresolver
-      - --certificatesresolvers.myresolver.acme.email=mail@example.com
       - --certificatesresolvers.myresolver.acme.tlschallenge=true
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
     labels:
@@ -36,7 +34,7 @@ services:
       - traefik.http.middlewares.myauth.basicauth.users=test:$$apr1$$H6uskkkW$$IgXLP6ewTrSuBkTrqE8wj/
 
   whoami:
-    image: traefik/whoami:v1.10
+    image: traefik/whoami:v1.11
     networks:
       - proxy
     labels:
