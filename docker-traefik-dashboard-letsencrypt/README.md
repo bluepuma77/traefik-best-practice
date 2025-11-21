@@ -15,7 +15,6 @@ Simple `docker-compose.yml` template to run Traefik and a whoami service with Do
 ## Deployment:
 
 - Adapt all domain names in `Host()`
-- Adapt `acme.email`
 - Adapt dashboard username/password
 - For production: write logs files to mounted folder on host
 - Run `docker compose up -d`
