@@ -43,7 +43,6 @@ services:
       - AUTODNS_API_PASSWORD=12345678
       - AUTODNS_CONTEXT=1234
     deploy:
-      mode: global
       placement:
         constraints:
           - node.role==manager
